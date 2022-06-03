@@ -1,0 +1,72 @@
+version: "3.9"
+services:
+  localstack:
+    container_name: "${LOCALSTACK_DOCKER_NAME-localstack_main}"
+    #image: localstack/localstack:latest
+    image: localstack/localstack:0.14.3
+    network_mode: bridge
+    ports:
+      - "4510-4559:4510-4559" # external service port range
+      - "4566:4566" # LocalStack Edge Proxy
+    environment:
+      - AWS_DEFAULT_REGION=us-east-1
+      - KINESIS_PROVIDER=kinesalite
+      - EDGE_PORT=4566
+      - DEBUG=${DEBUG-}
+      - DATA_DIR=${DATA_DIR-}
+      - HOST_TMP_FOLDER=${TMPDIR:-/tmp/}localstack
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - "${TMPDIR:-/tmp}/localstack:/tmp/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      #- ./localstack/bin:/docker-entrypoint-initaws.d
+    healthcheck:
+      test: [ "CMD", "curl", "-s", "http://0.0.0.0:4566" ]
+      interval: 25s
+      timeout: 2s
+      retries: 10
+  vault-dc1:
+    image: vault:latest
+    container_name: vault_dc1
+    command: [ 'vault', 'server', '-config=/vault/config/config.hcl' ]
+    ports:
+      - "8202-8203:8202-8203"
+    restart: always
+    environment:
+      VAULT_ADDR: http://172.20.0.10:8202
+    networks:
+      vault:
+        ipv4_address: 172.20.0.10
+    volumes:
+      - ./config/dc1.hcl:/vault/config/config.hcl:ro
+    depends_on:
+      localstack:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-s", "http://0.0.0.0:8202" ]
+      interval: 45s
+      timeout: 2s
+      retries: 10
+  vault-dc2:
+    image: vault:latest
+    container_name: vault_dc2
+    command: [ 'vault', 'server', '-config=/vault/config/config.hcl' ]
+    environment:
+      VAULT_ADDR: http://172.20.0.20:8204
+    ports:
+      - "8204-8205:8204-8205"
+    cap_add:
+      - IPC_LOCK
+    restart: always
+    networks:
+      vault:
+        ipv4_address: 172.20.0.20
+    volumes:
+      - ./config/dc2.hcl:/vault/config/config.hcl:ro
+    depends_on:
+      - vault-dc1
+networks:
+  vault:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24

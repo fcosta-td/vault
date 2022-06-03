@@ -1,0 +1,50 @@
+{
+    "log": {
+        "level": "debug",
+        "type": "console"
+    },
+    "numBuckets": 19,
+    "igonoreDeletes": false,
+    "ui": true,
+    "origin": {
+        "vault": {
+            "address": "http://0.0.0.0:8202",
+            "token": "hvs.CAESICPVveHn2_PPQEJqKp04H_G2djyoHYHQe76gXXvBP5aMGh4KHGh2cy5vQ1oyQnFqVXR0NW96MkYxalplU2V5WlA"
+        },
+        "consul": {
+            "dc": "dc1",
+            "address": "http://0.0.0.0:8500"
+        },
+        "mounts": [
+            "test-kv/"
+        ],
+        "syncPath": "vsync/",
+        "numWorkers": 5,
+        "tick": "10s",
+        "timeout": "10s"
+    },
+    "destination": {
+        "vault": {
+            "address": "http://0.0.0.0:8204",
+            "token": "hvs.CAESIP4aSENX99s6Di60-t-UC9kDqxtCfLu5F96Kj2oy7idgGh4KHGh2cy43bmRvMzIzUkNObG44TWlPSmc3dmpsRlQ"
+        },
+        "consul": {
+            "dc": "dc1",
+            "address": "http://0.0.0.0:8501"
+        },
+        "mounts": [
+            "test-kv/"
+        ],
+        "syncPath": "vsync/",
+        "numWorkers": 1,
+        "tick": "10s",
+        "timeout": "10s",
+        "transforms": [
+            {
+                "name": "region",
+                "from": "test-kv/data/stg/(?P<region>.*?)/(?P<everything>.*)",
+                "to": "test-kv/data/stg/ca-central-1/everything"
+            }
+        ]
+    }
+}

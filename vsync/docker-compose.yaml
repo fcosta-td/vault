@@ -1,0 +1,99 @@
+version: "3.9"
+services:
+  consul-dc1:
+    image: hashicorp/consul:1.11.0
+    container_name: consul-dc1
+    restart: always
+    volumes:
+      - ./config/consul/dc1.json:/consul/config/server.json:ro
+    networks:
+      vsync:
+        ipv4_address: 172.20.0.9
+    ports:
+      - "8500:8500"
+      - "8600:8600/tcp"
+      - "8600:8600/udp"
+    command: "agent"
+    healthcheck:
+      test: [ "CMD", "curl", "-s", "http://0.0.0.0:8500" ]
+      interval: 5s
+      timeout: 2s
+      retries: 10
+  consul-dc2:
+    image: hashicorp/consul:1.11.0
+    container_name: consul-dc2
+    restart: always
+    volumes:
+      - ./config/consul/dc2.json:/consul/config/server.json:ro
+    networks:
+      vsync:
+        ipv4_address: 172.20.0.19
+    ports:
+      - "8501:8501"
+      - "8601:8601/tcp"
+      - "8601:8601/udp"
+    command: "agent"
+    healthcheck:
+      test: [ "CMD", "curl", "-s", "http://0.0.0.0:8501" ]
+      interval: 5s
+      timeout: 2s
+      retries: 10
+  vault-dc1:
+    image: vault:latest
+    container_name: vault_dc1
+    command:
+      [
+        'vault',
+        'server',
+        '-dev',
+        '-config=/vault/config/config.hcl'
+      ]
+    ports:
+      - "8202-8203:8202-8203"
+    restart: always
+    environment:
+      VAULT_ADDR: http://172.20.0.10:8202
+      VAULT_TOKEN: root
+      VAULT_DEV_ROOT_TOKEN_ID: root
+    cap_add:
+      - IPC_LOCK
+    networks:
+      vsync:
+        ipv4_address: 172.20.0.10
+    volumes:
+      - ./config/dc1.hcl:/vault/config/config.hcl:ro
+    depends_on:
+      consul-dc1:
+        condition: service_healthy
+  vault-dc2:
+    image: vault:latest
+    container_name: vault_dc2
+    command:
+      [
+        'vault',
+        'server',
+        '-dev',
+        '-config=/vault/config/config.hcl'
+      ]
+    environment:
+      VAULT_ADDR: http://172.20.0.20:8204
+      VAULT_TOKEN: root
+      VAULT_DEV_ROOT_TOKEN_ID: root
+    ports:
+      - "8204-8205:8204-8205"
+    cap_add:
+      - IPC_LOCK
+    restart: always
+    networks:
+      vsync:
+        ipv4_address: 172.20.0.20
+    volumes:
+      - ./config/dc2.hcl:/vault/config/config.hcl:ro
+    depends_on:
+      consul-dc2:
+        condition: service_healthy
+networks:
+  vsync:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
